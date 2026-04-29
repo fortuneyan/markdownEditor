@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Editor</title>
+  <script src="lib/marked.min.js"></script>
+  <script src="lib/mermaid.min.js" onerror="window.mermaidLoadError=true"></script>
+  <style>
+    /* ========== 主题变量 ========== */
+    :root, [data-theme="dark"] {
+      --bg-base:      #0f1117;
+      --bg-panel:     #1e222b;
+      --bg-editor:    #181b23;
+      --bg-elevated:  #262a35;
+      --border:       #2d3340;
+      --text-primary: #e8eaed;
+      --text-muted:   #9ca3af;
+      --text-dim:     #6b7280;
+      --text-linenum: #3d4455;
+      --accent:       #f59e0b;
+      --accent-text:  #0f1117;
+      --stroke-ascii: #7EADD6;
+      --bg-ascii:     transparent;
+      --text-ascii:   #e8eaed;
+      --bg-mermaid:   transparent;
+      --transition:   background 0.25s, color 0.25s, border-color 0.25s;
+    }
+    [data-theme="light"] {
+      --bg-base:      #f5f6fa;
+      --bg-panel:     #ffffff;
+      --bg-editor:    #fafbfc;
+      --bg-elevated:  #eef0f4;
+      --border:       #d1d5db;
+      --text-primary: #1a1d23;
+      --text-muted:   #4b5563;
+      --text-dim:     #9ca3af;
+      --text-linenum: #b0b8c8;
+      --accent:       #d97706;
+      --accent-text:  #ffffff;
+      --stroke-ascii: #DBCFF3;
+      --bg-ascii:     transparent;
+      --text-ascii:   #4b5563;
+      --bg-mermaid:   transparent;
+      --transition:   background 0.25s, color 0.25s, border-color 0.25s;
+    }
+    /* ========== 全局 ========== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-base); color: var(--text-primary); height: 100vh; display: flex; flex-direction: column; transition: var(--transition); }
+    /* ========== 工具栏 ========== */
+    .toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--bg-panel); flex-shrink: 0; border-bottom: 1px solid var(--border); }
+    .toolbar-group { display: flex; gap: 4px; }
+    .tool-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+    .tool-btn svg { width: 18px; height: 18px; }
+    .tool-btn:hover { background: var(--bg-panel); color: var(--accent); border-color: var(--accent); }
+    .toolbar-divider { width: 1px; height: 24px; background: var(--border); margin: 0 8px; }
+    .mode-toggle-group { display: flex; gap: 4px; }
+    .mode-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+    .mode-btn svg { width: 16px; height: 16px; }
+    .mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+    .mode-btn:hover:not(.active) { background: var(--border); color: var(--text-primary); }
+    .toolbar-status { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+    .word-count { font-size: 12px; color: var(--text-dim); padding: 4px 12px; background: var(--bg-elevated); border-radius: 12px; }
+    .cursor-pos { font-size: 12px; color: var(--text-dim); padding: 4px 12px; background: var(--bg-elevated); border-radius: 12px; font-family: 'Consolas', monospace; }
+    /* ========== 布局 ========== */
+    .content-wrapper { flex: 1; display: flex; overflow: hidden; min-width: 0; }
+    .pane { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .split-pane { display: flex; flex: 1; min-width: 0; gap: 1px; background: var(--border); }
+    .split-pane .pane { background: var(--bg-editor); }
+    /* ========== 编辑器 ========== */
+    .editor-wrapper { display: flex; flex: 1; min-width: 0; overflow: hidden; background: var(--bg-editor); }
+    .line-numbers {
+      flex-shrink: 0;
+      align-self: stretch;
+      width: 48px;
+      padding: 20px 0;
+      background: var(--bg-editor);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+      user-select: none;
+      text-align: right;
+      transition: var(--transition);
+    }
+    .line-numbers span {
+      display: block;
+      padding-right: 10px;
+      font-size: 13px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      line-height: 1.6;
+      color: var(--text-linenum);
+      transition: color 0.1s;
+    }
+    .line-numbers span.active-line { color: var(--accent); font-weight: 600; }
+    .editor { flex: 1; min-width: 0; align-self: stretch; padding: 20px 20px 20px 12px; background: var(--bg-editor); border: none; color: var(--text-primary); font-size: 13px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; line-height: 1.6; resize: none; outline: none; tab-size: 4; white-space: pre; overflow-wrap: normal; overflow-x: auto; overflow-y: auto; transition: var(--transition); }
+    .editor:focus { outline: none; }
+    .editor::placeholder { color: var(--text-dim); }
+    /* ========== 预览区 ========== */
+    .preview { min-width: 0; padding: 20px; background: var(--bg-editor); color: var(--text-muted); line-height: 1.8; overflow-y: auto; height: 100%; transition: var(--transition); }
+    .preview h1 { font-size: 24px; color: var(--accent); margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .preview h2 { font-size: 20px; color: var(--text-primary); margin: 16px 0 12px; }
+    .preview h3 { font-size: 16px; color: var(--text-primary); margin: 12px 0 8px; }
+    .preview h4 { font-size: 14px; color: var(--text-primary); margin: 10px 0 6px; }
+    .preview p { margin-bottom: 12px; white-space: pre-wrap; word-wrap: break-word; }
+    .preview ul, .preview ol { margin: 8px 0; padding-left: 24px; }
+    .preview li { margin-bottom: 4px; }
+    .preview code { background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; font-family: "Consolas", monospace; color: var(--text-primary); }
+    .preview pre { background: var(--bg-elevated); padding: 12px; border-radius: 8px; overflow-x: auto; }
+    .preview pre code { background: transparent; padding: 0; }
+    .preview table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    .preview th, .preview td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    .preview th { background: var(--bg-elevated); color: var(--text-primary); }
+    .preview blockquote { border-left: 4px solid var(--accent); padding-left: 16px; margin: 12px 0; color: var(--text-dim); }
+    .preview a { color: var(--accent); }
+    .preview .mermaid-container { background: var(--bg-mermaid); border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center; }
+    .preview .mermaid-container svg { max-width: 100%; height: auto; }
+    .preview .ascii-container { background: var(--bg-ascii); padding: 16px; margin: 16px 0; border-radius: 8px; overflow: auto; }
+    .preview .ascii-container svg { max-width: 100%; height: auto; }
+    /* ========== 思维导图面板 ========== */
+    .mindmap-panel { position: fixed; top: 60px; right: 0; width: 45%; height: calc(100% - 60px); background: var(--bg-panel); border-left: 1px solid var(--border); display: none; flex-direction: column; z-index: 100; }
+    .mindmap-panel.show { display: flex; }
+    .mindmap-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .mindmap-header h3 { font-size: 14px; color: var(--text-primary); }
+    .mindmap-close { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; }
+    .mindmap-close:hover { color: var(--text-primary); }
+    .mindmap-content { flex: 1; overflow: auto; padding: 20px; background: var(--bg-editor); }
+    .hidden { display: none !important; }
+    /* ========== 打印（固定白底黑字，不受主题影响）========== */
+    @media print { .toolbar, .content-wrapper { display: none !important; } body { background: white; color: black; } .preview { background: white; color: black; padding: 0; } .preview h1, .preview h2, .preview h3 { color: black; } .preview code, .preview pre { background: #f5f5f5; color: black; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="tool-btn" title="清空" onclick="clearEditor()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+      </button>
+      <button class="tool-btn" title="插入表格" onclick="insertTable()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      </button>
+      <button class="tool-btn" title="插入代码块" onclick="insertCodeBlock()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </button>
+      <!-- 思维导图按钮暂时隐藏，显示内容待修复
+      <button class="tool-btn" title="思维导图" onclick="insertMindMap()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="9" y1="10" x2="6" y2="7"/><line x1="15" y1="10" x2="18" y2="7"/><line x1="9" y1="14" x2="6" y2="17"/><line x1="15" y1="14" x2="18" y2="17"/></svg>
+      </button>
+      -->
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" title="标题" onclick="insertHeading(2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button class="tool-btn" title="粗体" onclick="insertBold()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+      </button>
+      <button class="tool-btn" title="斜体" onclick="insertItalic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+      </button>
+      <button class="tool-btn" title="链接" onclick="insertLink()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="tool-btn" title="列表" onclick="insertList()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-group">
+      <button class="tool-btn" title="上传文件" onclick="uploadFile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+      <button class="tool-btn" title="下载" onclick="downloadFile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="tool-btn" title="打印" onclick="printDocument()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      </button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="mode-toggle-group">
+      <button class="mode-btn active" title="编辑" onclick="setMode('edit')" id="btn-edit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="mode-btn" title="预览" onclick="setMode('preview')" id="btn-preview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button class="mode-btn" title="分屏" onclick="setMode('split')" id="btn-split">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+      </button>
+      <!-- 思维导图按钮暂时隐藏，显示内容待修复
+      <button class="mode-btn" title="思维导图" onclick="toggleMindMap()" id="btn-mindmap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="9" y1="10" x2="6" y2="7"/><line x1="15" y1="10" x2="18" y2="7"/><line x1="9" y1="14" x2="6" y2="17"/><line x1="15" y1="14" x2="18" y2="17"/></svg>
+      </button>
+      -->
+    </div>
+    <div class="toolbar-divider"></div>
+    <!-- 主题切换按钮 -->
+    <button class="tool-btn" id="btn-theme" title="切换主题" onclick="toggleTheme()" style="width:32px;height:32px;">
+      <!-- 月亮（dark模式下显示，点击切换到light） -->
+      <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <!-- 太阳（light模式下显示，点击切换到dark） -->
+      <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+    <div class="toolbar-status">
+      <span class="cursor-pos" id="cursorPos">行 1，列 1</span>
+      <span class="word-count" id="wordCount">0 字</span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".md,.markdown,.txt" style="display:none" onchange="handleFileUpload(event)">
+  <div class="content-wrapper">
+    <div class="pane" id="editPane">
+      <div class="editor-wrapper">
+        <div class="line-numbers" id="lineNumbers"></div>
+        <textarea class="editor" id="editor" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbers')" onmouseup="updateCursorPos(this,'lineNumbers')" onclick="updateCursorPos(this,'lineNumbers')" onscroll="syncLineScroll(this,'lineNumbers')"></textarea>
+      </div>
+    </div>
+    <div class="pane hidden" id="previewPane">
+      <div class="preview" id="preview"></div>
+    </div>
+    <div class="split-pane hidden" id="splitPane">
+      <div class="pane">
+        <div class="editor-wrapper">
+          <div class="line-numbers" id="lineNumbersSplit"></div>
+          <textarea class="editor" id="editorSplit" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbersSplit')" onmouseup="updateCursorPos(this,'lineNumbersSplit')" onclick="updateCursorPos(this,'lineNumbersSplit')" onscroll="syncLineScroll(this,'lineNumbersSplit')"></textarea>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="preview" id="previewSplit"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mindmap-panel" id="mindmapPanel">
+    <div class="mindmap-header">
+      <h3>思维导图预览</h3>
+      <button class="mindmap-close" onclick="toggleMindMap()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="mindmap-content" id="mindmapContent"></div>
+  </div>
+  <script>
+/* ============================
+   ASCII-Art SVG 转换器 (来自 code.html)
+   ============================ */
+var NEED_COL_MATCH, HAS_UP, HAS_DOWN, BOX_LINE_CHARS, SPECIAL_CHARS, HAS_LEFT, HAS_RIGHT, CHAR_DIRS, TEXT_SKIP;
+(function() {
+  NEED_COL_MATCH = new Set(['│','┌','┐','└','┘','├','┤','┬','┴','┼','║','╭','╮','╰','╯','╠','╣','╦','╩','╬','▼','▲','►','◄','↓','↑','←','→','◆','★','•','○','●','■','□','◇','△','▽','⊕','⊗']);
+  HAS_UP = new Set(['│','└','┘','├','┤','┴','┼','║','╠','╣','╩','╬','▼','▽']);
+  HAS_DOWN = new Set(['│','┌','┐','├','┤','┼','┬','║','╭','╠','╣','╦','╬','▲','△']);
+  BOX_LINE_CHARS = new Set(['│','┌','┐','└','┘','├','┤','┬','┴','┼','║','╭','╮','╰','╯','╠','╣','╦','╩','╬']);
+  SPECIAL_CHARS = new Set(['▼','▲','►','◄','↓','↑','←','→','★','■','□','△','▽','⊕','⊗']); // '•','○','●','◇','◆',
+  HAS_LEFT = new Set(['┐','┘','┤','┬','┴','┼','─','►','→','>']);
+  HAS_RIGHT = new Set(['┌','└','├','┬','┴','┼','─','◄','←','<']);
+  CHAR_DIRS = {
+    '│': ['U','D'], '─': ['L','R'],
+    '┌': ['R','D'], '┐': ['L','D'], '└': ['R','U'], '┘': ['L','U'],
+    '├': ['R','U','D'], '┤': ['L','U','D'], '┬': ['L','R','D'], '┴': ['L','R','U'],
+    '┼': ['U','D','L','R'],
+    '║': ['U','D'], '═': ['L','R'],
+    '╭': ['R','D'], '╮': ['L','D'], '╰': ['R','U'], '╯': ['L','U'],
+    '╠': ['R','U','D'], '╣': ['L','U','D'], '╦': ['L','R','D'], '╩': ['L','R','U'],
+    '╬': ['U','D','L','R'],
+  };
+  var BOX_ALL = new Set(['│','─','┌','┐','└','┘','├','┤','┬','┴','┼','║','═','╭','╮','╰','╯','╠','╣','╦','╩','╬']);
+  TEXT_SKIP = new Set([...BOX_ALL, ...SPECIAL_CHARS]);
+})();
+
+function escapeXml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/ /g,'\u00A0');
+}
+
+function matchColsByPosition(chars, activeCols, charW, padX) {
+  var used = new Set();
+  var result = [];
+  for (var i = 0; i < chars.length; i++) {
+    var item = chars[i];
+    var bestIdx = -1;
+    var bestDist = Infinity;
+    if (HAS_UP.has(item.ch)) {
+      // 最近距离匹配：遍历所有未使用且有下分支的活跃列，取距离最小者
+      for (var j = 0; j < activeCols.length; j++) {
+        if (used.has(j)) continue;
+        if (!HAS_DOWN.has(activeCols[j].ch)) continue;
+        var dist = Math.abs(item.col - activeCols[j].col);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = j;
+          // 不 break，继续找更近的
+        }
+      }
+    }
+    if (bestIdx >= 0 && bestDist <= 25) {
+      used.add(bestIdx);
+      result.push({
+        x: activeCols[bestIdx].x,
+        ch: item.ch,
+        col: activeCols[bestIdx].col, // 继承上一行的 col 用于后续偏移
+        oldCol: item.col              // 保留原始列用于水平线检测
+      });
+    } else {
+      result.push({ x: padX + item.col * charW, ch: item.ch, col: item.col });
+    }
+  }
+  return { result: result, used: used };
+}
+
+function renderBoxChar(ch, x, y, w, h, color, lw) {
+  var cx = x + w / 2;
+  var cy = y + h / 2;
+  var dirs = CHAR_DIRS[ch];
+  if (!dirs) return '';
+  var svg = '';
+  var endpoints = { U: [cx, y], D: [cx, y + h], L: [x, cy], R: [x + w, cy] };
+  for (var d = 0; d < dirs.length; d++) {
+    var pt = endpoints[dirs[d]];
+    svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + pt[0] + '" y2="' + pt[1] + '" stroke="' + color + '" stroke-width="' + lw + '" stroke-linecap="square"/>';
+  }
+  return svg;
+}
+
+// 文字提取时允许出现在文字段内的符号（不跳过），让它们能被 SVG text 渲染
+var TEXT_ALLOW_IN_CONTENT = new Set(['◆','★','•','○','●','■','□','◇','>','<']);
+// 文字提取真正要跳过的字符集：TEXT_SKIP 中排除上面允许的符号
+var TEXT_SKIP_FOR_EXTRACT;
+(function() {
+  TEXT_SKIP_FOR_EXTRACT = new Set();
+  TEXT_SKIP.forEach(function(c) {
+    if (!TEXT_ALLOW_IN_CONTENT.has(c)) TEXT_SKIP_FOR_EXTRACT.add(c);
+  });
+})();
+
+function extractTextSegments(line) {
+  var segs = [];
+  var i = 0;
+  while (i < line.length) {
+    // 跳过 box-drawing 字符和空格，但允许 ◆★•○●■□◇> 出现在文字里
+    if (TEXT_SKIP_FOR_EXTRACT.has(line[i]) || line[i] === ' ') { i++; continue; }
+    var start = i;
+    while (i < line.length && !TEXT_SKIP_FOR_EXTRACT.has(line[i])) { i++; }
+    var raw = line.substring(start, i);
+    var trimmed = raw.trimEnd();
+    if (trimmed) { segs.push({ col: start, text: trimmed }); }
+  }
+  return segs;
+}
+
+function convertAsciiToSvg(text, opts) {
+  var charW = opts.charW || 9, charH = opts.charH || 19, padX = opts.padX || 24, padY = opts.padY || 24;
+  var strokeW = opts.strokeW || 1.4, strokeColor = opts.strokeColor || '#00e88f';
+  var textColor = opts.textColor || '#ffffff', bgColor = opts.bgColor || '#0a0f16';
+  var fontSize = opts.fontSize || 12;
+
+  var lines = text.split('\n');
+  if (lines.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+
+  var activeCols = [];
+  var elements = [];
+
+  for (var row = 0; row < lines.length; row++) {
+    var line = lines[row];
+    var top = padY + row * charH;
+    var midY = top + charH / 2;
+
+    // ===== 步骤1：收集所有需要列匹配的字符 =====
+    var matchChars = [];
+    for (var c = 0; c < line.length; c++) {
+      if (NEED_COL_MATCH.has(line[c])) {
+        matchChars.push({ ch: line[c], col: c });
+      }
+    }
+
+    // ===== 步骤2：互斥分类 =====
+    // 第一轮：有竖方向（上或下）的字符，需要列继承匹配
+    var machars = matchChars.filter(function(v) { return HAS_UP.has(v.ch) || HAS_DOWN.has(v.ch); });
+    // 第二轮：既无上也无下的字符（纯水平/特殊符号），匹配剩余活跃列
+    // 注意：!HAS_DOWN 包含了 └┘ 等有上无下的字符，会导致双重渲染！必须用 !HAS_UP && !HAS_DOWN
+    var noDownChars = matchChars.filter(function(v) { return !HAS_UP.has(v.ch) && !HAS_DOWN.has(v.ch); });
+
+    // ===== 步骤3：第一轮匹配 —— 有下分支优先 =====
+    var matched = matchColsByPosition(machars, activeCols, charW, padX);
+    var usedCols = matched.used;
+
+    // ===== 步骤4：第二轮匹配 —— 无下分支匹配剩余活跃列 =====
+    var remainingCols = activeCols.filter(function(_, i) { return !usedCols.has(i); });
+    var matched2 = matchColsByPosition(noDownChars, remainingCols, charW, padX);
+
+    // ===== 步骤5：合并排序 =====
+    var allPos = (matched.result || []).concat(matched2.result || []).sort(function(a, b) { return a.col - b.col; });
+
+    // ===== 步骤5b：相邻具有左右方向的字符之间若有─则画水平连线 =====
+    // 候选集：BOX_LINE_CHARS + 有左右方向的特殊符号（◄ ► → ←）
+    var hLineChars = new Set([...BOX_LINE_CHARS, '◄', '►', '→', '←', '<', '>']);
+    var boxPositions = allPos.filter(function(p) { return hLineChars.has(p.ch); });
+    for (var bi = 1; bi < boxPositions.length; bi++) {
+      var prev = boxPositions[bi - 1];
+      var curr = boxPositions[bi];
+      var hasDash = false;
+      if (HAS_RIGHT.has(prev.ch) && HAS_LEFT.has(curr.ch)) {
+        // 两端都有对应方向，直接连线
+        hasDash = true;
+      } else if (HAS_RIGHT.has(prev.ch) || HAS_LEFT.has(curr.ch)) {
+        // 只有一端，扫描原始列之间是否存在 ─ 或 ═
+        var fromCol = (prev.oldCol !== undefined ? prev.oldCol : prev.col) + 1;
+        var toCol   = (curr.oldCol !== undefined ? curr.oldCol : curr.col);
+        for (var j = fromCol; j < toCol; j++) {
+          if (j < line.length && (line[j] === '─' || line[j] === '═')) {
+            hasDash = true;
+            break;
+          }
+        }
+      }
+
+      if (hasDash) {
+        var x1h = prev.x + charW;
+        var x2h = curr.x;
+        elements.push('<line x1="' + x1h + '" y1="' + midY + '" x2="' + x2h + '" y2="' + midY + '" stroke="' + strokeColor + '" stroke-width="' + strokeW + '" stroke-linecap="square"/>');
+      }
+    }
+
+    // ===== 步骤6：渲染 box-drawing 线段 =====
+    for (var p = 0; p < allPos.length; p++) {
+      if (BOX_LINE_CHARS.has(allPos[p].ch)) {
+        elements.push(renderBoxChar(allPos[p].ch, allPos[p].x, top, charW, charH, strokeColor, strokeW));
+      }
+    }
+
+    // ===== 步骤7：渲染特殊符号（▼▲等）为居中文字 =====
+    for (var p = 0; p < allPos.length; p++) {
+      if (SPECIAL_CHARS.has(allPos[p].ch)) {
+        elements.push('<text x="' + (allPos[p].x + charW/2) + '" y="' + (top + charH*0.84) + '" fill="' + strokeColor + '" font-size="' + (fontSize+2) + '" font-family="monospace" text-anchor="middle" xml:space="preserve">' + escapeXml(allPos[p].ch) + '</text>');
+      }
+    }
+
+    // ===== 步骤8：提取并渲染文字段（带偏移继承）=====
+    var textSegs = extractTextSegments(line);
+    for (var s = 0; s < textSegs.length; s++) {
+      var seg = textSegs[s];
+      var textX = padX + seg.col * charW; // 默认原始列位置
+      // 找前方最近的已匹配字符，基于其偏移量计算文字 X
+      for (var ai = allPos.length - 1; ai >= 0; ai--) {
+        var refCol = (allPos[ai].oldCol !== undefined ? allPos[ai].oldCol : allPos[ai].col);
+        if (refCol < seg.col) {
+          var offset = (seg.col - refCol) * charW;
+          textX = allPos[ai].x + offset;
+          break;
+        }
+      }
+      elements.push('<text x="' + textX + '" y="' + (top + charH*0.8) + '" fill="' + textColor + '" font-size="' + fontSize + '" font-family="monospace" xml:space="preserve">' + escapeXml(seg.text) + '</text>');
+    }
+
+    // ===== 步骤9：更新活跃列 —— 只保留"有下分支"字符 =====
+    activeCols = (matched.result || []).filter(function(m) { return HAS_DOWN.has(m.ch); }).map(function(m) { return { x: m.x, ch: m.ch, col: m.col }; });
+  }
+
+  var maxCol = lines.reduce(function(m, l) { return Math.max(m, l.length); }, 0);
+  var svgW = maxCol * charW + padX * 2;
+  var svgH = lines.length * charH + padY * 2;
+
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '"><rect width="' + svgW + '" height="' + svgH + '" fill="' + bgColor + '" rx="6"/>' + elements.join('\n') + '</svg>';
+}
+    let currentMode = 'edit';
+    let mindmapVisible = false;
+    let currentTheme = 'dark'; // 默认暗色主题
+
+    /* ========== 主题切换 ========== */
+    function applyTheme(theme) {
+      currentTheme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      // 图标切换：dark显示月亮，light显示太阳
+      document.getElementById('icon-moon').style.display = theme === 'dark' ? '' : 'none';
+      document.getElementById('icon-sun').style.display  = theme === 'light' ? '' : 'none';
+
+      // 主题切换不需要重跑整个 Markdown 渲染管线（CSS 变量已自动生效）
+      // 只需更新 mermaid 和 ASCII 图的内联颜色
+      var containers = [];
+      if (currentMode === 'edit') {
+        // 编辑模式无需更新预览
+      } else if (currentMode === 'preview') {
+        containers.push(document.getElementById('preview'));
+      } else {
+        containers.push(document.getElementById('previewSplit'));
+      }
+
+      // 重新初始化 mermaid 主题并重渲已有的 mermaid 图
+      if (typeof mermaid !== 'undefined' && mermaid.initialize) {
+        try {
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: theme === 'dark' ? 'dark' : 'default',
+            securityLevel: 'loose'
+          });
+        } catch(e) {}
+        // 找到所有 mermaid 代码原文并重新渲染
+        for (var ci = 0; ci < containers.length; ci++) {
+          refreshMermaidDiagrams(containers[ci]);
+        }
+      }
+
+      // ASCII 图：直接替换 SVG 内联颜色，无需重跑 convertAsciiToSvg
+      for (var ci = 0; ci < containers.length; ci++) {
+        refreshAsciiColors(containers[ci]);
+      }
+    }
+
+    /**
+     * 重新渲染已有的 mermaid 图（用新主题色）
+     */
+    function refreshMermaidDiagrams(container) {
+      if (!mermaid || !mermaid.render) return;
+      var mermaidDivs = container.querySelectorAll('.mermaid-container');
+      if (mermaidDivs.length === 0) return;
+
+      // 从原始 Markdown 中提取 mermaid 代码
+      var content = getActiveEditor().value;
+      var matches = content.match(/```mermaid\n([\s\S]*?)```/g);
+      if (!matches) return;
+
+      for (var i = 0; i < mermaidDivs.length && i < matches.length; i++) {
+        var code = matches[i].replace(/```mermaid\n/, '').replace(/```/, '');
+        var id = 'chart' + i + Date.now();
+        try {
+          var result = mermaid.render(id, code);
+          if (result && typeof result.then === 'function') {
+            (function(div) {
+              result.then(function(output) {
+                div.innerHTML = output.svg || output;
+              }).catch(function() {});
+            })(mermaidDivs[i]);
+          } else {
+            mermaidDivs[i].innerHTML = result.svg || result;
+          }
+        } catch(e) { console.error('refreshMermaid error:', e); }
+      }
+    }
+
+    /**
+     * 刷新 ASCII SVG 的内联颜色（无需重跑渲染管线）
+     */
+    function refreshAsciiColors(container) {
+      var rootStyle = getComputedStyle(document.documentElement);
+      var stroke = rootStyle.getPropertyValue('--stroke-ascii').trim();
+      var text   = rootStyle.getPropertyValue('--text-ascii').trim();
+      var bg     = rootStyle.getPropertyValue('--bg-ascii').trim();
+
+      var asciiDivs = container.querySelectorAll('.ascii-container');
+      for (var i = 0; i < asciiDivs.length; i++) {
+        var svg = asciiDivs[i].querySelector('svg');
+        if (!svg) continue;
+
+        // 更新背景 rect 的 fill
+        var rects = svg.querySelectorAll('rect');
+        for (var r = 0; r < rects.length; r++) {
+          if (rects[r].getAttribute('rx') || rects[r].getAttribute('fill')) {
+            var currentFill = rects[r].getAttribute('fill');
+            // 只替换全屏背景 rect（没有 stroke 的）
+            if (currentFill && !rects[r].getAttribute('stroke')) {
+              rects[r].setAttribute('fill', bg);
+            }
+          }
+        }
+
+        // 更新线条 stroke
+        var lines = svg.querySelectorAll('line');
+        for (var l = 0; l < lines.length; l++) {
+          lines[l].setAttribute('stroke', stroke);
+        }
+        var paths = svg.querySelectorAll('path, polyline');
+        for (var p = 0; p < paths.length; p++) {
+          paths[p].setAttribute('stroke', stroke);
+        }
+
+        // 更新文字 fill
+        var texts = svg.querySelectorAll('text');
+        for (var t = 0; t < texts.length; t++) {
+          texts[t].setAttribute('fill', text);
+        }
+
+        // 更新容器背景
+        asciiDivs[i].style.background = bg;
+      }
+    }
+
+    function toggleTheme() {
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+    /* ========== END 主题切换 ========== */
+
+    /* ============================
+       行号 & 光标位置
+       ============================ */
+
+    // 渲染行号（在 oninput 时调用）
+    function renderLineNumbers(textarea, numbersId) {
+      var el = document.getElementById(numbersId);
+      if (!el) return;
+      var lines = textarea.value.split('\n');
+      var count = lines.length;
+      // 只在行数变化时重建 DOM，避免抖动
+      var spans = el.children;
+      if (spans.length !== count) {
+        var html = '';
+        for (var i = 1; i <= count; i++) {
+          html += '<span>' + i + '</span>';
+        }
+        el.innerHTML = html;
+      }
+      // 高亮当前行
+      highlightActiveLine(textarea, numbersId);
+    }
+
+    // 高亮当前行号
+    function highlightActiveLine(textarea, numbersId) {
+      var el = document.getElementById(numbersId);
+      if (!el) return;
+      var curLine = getCurrentLine(textarea);
+      var spans = el.children;
+      for (var i = 0; i < spans.length; i++) {
+        spans[i].classList.toggle('active-line', i === curLine - 1);
+      }
+    }
+
+    // 获取当前光标所在行号（1-based）
+    function getCurrentLine(textarea) {
+      var val = textarea.value;
+      var pos = textarea.selectionStart || 0;
+      return val.substring(0, pos).split('\n').length;
+    }
+
+    // 获取当前光标所在列号（1-based）
+    function getCurrentCol(textarea) {
+      var val = textarea.value;
+      var pos = textarea.selectionStart || 0;
+      var lineStart = val.lastIndexOf('\n', pos - 1) + 1;
+      return pos - lineStart + 1;
+    }
+
+    // 更新状态栏光标位置，并同步高亮行号
+    function updateCursorPos(textarea, numbersId) {
+      var line = getCurrentLine(textarea);
+      var col  = getCurrentCol(textarea);
+      document.getElementById('cursorPos').textContent = '行 ' + line + '，列 ' + col;
+      highlightActiveLine(textarea, numbersId);
+    }
+
+    // 同步行号列的 scrollTop 与 textarea 一致
+    function syncLineScroll(textarea, numbersId) {
+      var el = document.getElementById(numbersId);
+      if (el) el.scrollTop = textarea.scrollTop;
+    }
+
+    /* ============================
+       END 行号 & 光标位置
+       ============================ */
+
+    const defaultContent = ``;
+
+    function init() {
+      try {
+        window.mermaidLoadError = false;
+        if (typeof mermaid === 'undefined') window.mermaidLoadError = true;
+      } catch(e) { window.mermaidLoadError = true; }
+      document.getElementById('editor').value = defaultContent;
+      document.getElementById('editorSplit').value = defaultContent;
+      // 初始化行号
+      renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
+      renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+      // 应用默认主题（dark），同时初始化 mermaid
+      applyTheme('dark');
+    }
+
+    function getActiveEditor() {
+      return currentMode === 'split' ? document.getElementById('editorSplit') : document.getElementById('editor');
+    }
+
+    function onEditorInput() {
+      const content = getActiveEditor().value;
+      document.getElementById('editor').value = content;
+      document.getElementById('editorSplit').value = content;
+      // 同步行号
+      renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
+      renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+      // 更新光标位置
+      updateCursorPos(getActiveEditor(), currentMode === 'split' ? 'lineNumbersSplit' : 'lineNumbers');
+      updatePreview();
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + mode).classList.add('active');
+      document.getElementById('editPane').classList.toggle('hidden', mode !== 'edit');
+      document.getElementById('previewPane').classList.toggle('hidden', mode !== 'preview');
+      document.getElementById('splitPane').classList.toggle('hidden', mode !== 'split');
+      if (mode === 'preview' || mode === 'split') updatePreview();
+      if (mode === 'split') {
+        initSplitScroll();
+      } else {
+        destroySplitScroll();
+      }
+    }
+
+    // ===== 分屏滚动同步（基于源码行号 → 预览元素映射） =====
+    var _splitScrollHandlers = null;
+    var _sourceTotalLines = 0; // 源码总行数
+
+    /**
+     * 扫描 Markdown 源码，构建每个块级元素及其子项的行范围
+     * 返回 [{lineStart, lineEnd, type, children?}, ...]
+     * children 用于列表项 <li> 和表格行 <tr>
+     */
+    function buildBlockLineRanges(md) {
+      var lines = md.split('\n');
+      var blocks = [];
+      var i = 0;
+
+      while (i < lines.length) {
+        var line = lines[i];
+
+        // 跳过空行
+        if (line.trim() === '') { i++; continue; }
+
+        // 代码块
+        if (/^```/.test(line)) {
+          var langMatch = line.match(/^```(\w*)/);
+          var lang = langMatch ? langMatch[1] : '';
+          var start = i;
+          i++;
+          while (i < lines.length && !/^```/.test(lines[i])) i++;
+          blocks.push({ lineStart: start, lineEnd: i, type: lang ? 'code-' + lang : 'code' });
+          i++; // skip closing ```
+          continue;
+        }
+
+        // 标题
+        if (/^#{1,6}\s/.test(line)) {
+          blocks.push({ lineStart: i, lineEnd: i, type: 'heading' });
+          i++;
+          continue;
+        }
+
+        // 表格
+        if (/^\|.*\|/.test(line) && i + 1 < lines.length && /^\|[\s\-:|]+\|/.test(lines[i + 1])) {
+          var tStart = i;
+          var children = [];
+          // 表头行
+          children.push({ lineStart: i, lineEnd: i, tag: 'tr' });
+          i++;
+          // 分隔行，跳过
+          i++;
+          // 数据行
+          while (i < lines.length && /^\|.*\|/.test(lines[i])) {
+            children.push({ lineStart: i, lineEnd: i, tag: 'tr' });
+            i++;
+          }
+          blocks.push({ lineStart: tStart, lineEnd: i - 1, type: 'table', children: children });
+          continue;
+        }
+
+        // 水平线
+        if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+          blocks.push({ lineStart: i, lineEnd: i, type: 'hr' });
+          i++;
+          continue;
+        }
+
+        // 列表（无序和有序）
+        if (/^[-*+]\s/.test(line) || /^\d+\.\s/.test(line)) {
+          var listStart = i;
+          var listChildren = [];
+          while (i < lines.length) {
+            var li = lines[i];
+            // 列表项匹配
+            if (/^[-*+]\s/.test(li) || /^\d+\.\s/.test(li)) {
+              listChildren.push({ lineStart: i, lineEnd: i, tag: 'li' });
+              i++;
+            } else if (li.trim() !== '' && /^ {2,}/.test(li)) {
+              // 缩进续行，归属上一个列表项
+              if (listChildren.length > 0) {
+                listChildren[listChildren.length - 1].lineEnd = i;
+              }
+              i++;
+            } else {
+              break;
+            }
+          }
+          blocks.push({ lineStart: listStart, lineEnd: i - 1, type: 'list', children: listChildren });
+          continue;
+        }
+
+        // 普通块（段落、引用等）— 到空行结束
+        var bStart = i;
+        while (i < lines.length && lines[i].trim() !== '') {
+          if (/^```/.test(lines[i])) break;
+          i++;
+        }
+        blocks.push({ lineStart: bStart, lineEnd: i - 1, type: 'block' });
+      }
+
+      _sourceTotalLines = lines.length;
+      return blocks;
+    }
+
+    /**
+     * 在 Markdown 源码中注入块级行范围标记（HTML 注释）
+     * marked 会保留 HTML 注释，渲染后再将标记转换为元素属性
+     * 注意：子项（<li>/<tr>）不在源码注入，改为 DOM 后处理
+     */
+    function injectBlockMarkers(md, blocks) {
+      var sorted = blocks.slice().sort(function(a, b) { return a.lineStart - b.lineStart; });
+      var lines = md.split('\n');
+      var result = '';
+      var blockIdx = 0;
+
+      for (var i = 0; i < lines.length; i++) {
+        if (blockIdx < sorted.length && i === sorted[blockIdx].lineStart) {
+          result += '<!--block-start:' + sorted[blockIdx].lineStart + ',' + sorted[blockIdx].lineEnd + '-->\n';
+          blockIdx++;
+        }
+        result += lines[i] + '\n';
+      }
+
+      return result;
+    }
+
+    /**
+     * 后处理渲染后的 HTML：将 <!--block-start:S,E--> 后的标签加上 data-line-start/end 属性
+     */
+    function processRenderedHTML(html) {
+      return html.replace(/<!--block-start:([\d]+),([\d]+)-->\s*\n\s*<(\w+)/g,
+        '<$3 data-line-start="$1" data-line-end="$2"');
+    }
+
+    /**
+     * 渲染后 DOM 操作：为嵌套子元素（<li>/<tr>）标注行号
+     * 使用 buildBlockLineRanges 的 children 信息
+     */
+    function annotateChildElements(container, blocks) {
+      // 只处理有 children 的块（list 和 table）
+      var blockChildrenByStart = {};
+      for (var b = 0; b < blocks.length; b++) {
+        if (blocks[b].children) {
+          for (var c = 0; c < blocks[b].children.length; c++) {
+            blockChildrenByStart[blocks[b].children[c].lineStart] = blocks[b].children[c];
+          }
+        }
+      }
+
+      if (Object.keys(blockChildrenByStart).length === 0) return;
+
+      // 找到所有块级容器，递归查找子元素
+      var children = container.children;
+      for (var i = 0; i < children.length; i++) {
+        var el = children[i];
+        var blockStart = parseInt(el.getAttribute('data-line-start'));
+        if (isNaN(blockStart)) continue;
+
+        // 在对应的 block 中查找 children
+        var block = null;
+        for (var b = 0; b < blocks.length; b++) {
+          if (blocks[b].lineStart === blockStart && blocks[b].children) {
+            block = blocks[b];
+            break;
+          }
+        }
+        if (!block) continue;
+
+        // 查找子元素并标注
+        var tagName = block.type === 'list' ? 'li' : 'tr';
+        var subEls = el.querySelectorAll(tagName);
+        var childIdx = 0;
+
+        for (var j = 0; j < subEls.length && childIdx < block.children.length; j++) {
+          var child = block.children[childIdx];
+          subEls[j].setAttribute('data-line-start', child.lineStart);
+          subEls[j].setAttribute('data-line-end', child.lineEnd);
+          childIdx++;
+        }
+      }
+    }
+
+    /**
+     * 获取编辑器可见区域顶部对应的源码行号（0-based）
+     */
+    function getSourceLineAtTop(textarea) {
+      var lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20.8;
+      var topLine = Math.round(textarea.scrollTop / lineHeight);
+      return Math.max(0, Math.min(topLine, _sourceTotalLines - 1));
+    }
+
+    /**
+     * 根据源码行号，计算预览区应滚动到的 scrollTop
+     * 支持图形块（mermaid/ascii）超出视口时的行内插值
+     * 递归搜索子元素（<li>、<tr>）以支持细粒度映射
+     */
+    function getPreviewScrollForLine(previewContainer, sourceLine) {
+      var result = findElementForLine(previewContainer, sourceLine);
+      if (result) {
+        var el = result.el;
+        var start = result.start;
+        var end = result.end;
+        var viewH = previewContainer.clientHeight;
+        var elH = el.offsetHeight;
+        var isOversized = elH > viewH;
+        var isDiagram = el.classList.contains('mermaid-container') || el.classList.contains('ascii-container');
+
+        if (isOversized && isDiagram && (end - start) > 0) {
+          var ratio = (sourceLine - start) / (end - start);
+          return el.offsetTop + ratio * Math.max(0, elH - viewH);
+        }
+
+        // 计算元素相对于预览容器的偏移量（需累加父级 offsetTop）
+        var absTop = getAbsoluteOffsetTop(el, previewContainer);
+        return absTop;
+      }
+
+      // 回退：按比例
+      var viewH = previewContainer.clientHeight;
+      var maxScroll = previewContainer.scrollHeight - viewH;
+      if (maxScroll <= 0 || _sourceTotalLines <= 0) return 0;
+      return (sourceLine / _sourceTotalLines) * maxScroll;
+    }
+
+    /**
+     * 在容器内（含嵌套子元素）查找包含指定行号的元素
+     * 优先匹配细粒度子项（<li>, <tr>），再匹配块级元素
+     */
+    function findElementForLine(container, sourceLine) {
+      var children = container.children;
+      var bestMatch = null;
+
+      for (var i = 0; i < children.length; i++) {
+        var el = children[i];
+        var start = parseInt(el.getAttribute('data-line-start'));
+        var end = parseInt(el.getAttribute('data-line-end'));
+
+        if (!isNaN(start)) {
+          if (sourceLine >= start && sourceLine <= end) {
+            // 先尝试递归搜索子元素（更细粒度）
+            var childMatch = findElementForLine(el, sourceLine);
+            if (childMatch) return childMatch;
+            // 没有更细的子项匹配，返回当前元素
+            return { el: el, start: start, end: end };
+          }
+
+          // 记录最近的"前一个"元素，用于空行区域
+          if (start > sourceLine && !bestMatch) {
+            bestMatch = { el: el, start: start, end: end, isAfter: true };
+          }
+        } else {
+          // 没有行号标记的元素，递归搜索子元素
+          var childMatch = findElementForLine(el, sourceLine);
+          if (childMatch) return childMatch;
+        }
+      }
+
+      // sourceLine 在空行区域
+      if (bestMatch && bestMatch.isAfter) {
+        return { el: bestMatch.el, start: bestMatch.start, end: bestMatch.end };
+      }
+
+      return null;
+    }
+
+    /**
+     * 计算元素相对于指定祖先容器的绝对 offsetTop
+     * （累加所有中间父级的 offsetTop）
+     */
+    function getAbsoluteOffsetTop(el, ancestor) {
+      var top = 0;
+      var current = el;
+      while (current && current !== ancestor) {
+        top += current.offsetTop;
+        current = current.offsetParent;
+        // 如果 offsetParent 链跳出了预览容器，回退到 parentNode
+        if (!current || current === document.body) {
+          // 使用 parentNode 链手动累加
+          top = 0;
+          current = el;
+          while (current && current !== ancestor) {
+            top += current.offsetTop - current.scrollTop;
+            current = current.parentNode;
+            if (current === document.body) break;
+          }
+          break;
+        }
+      }
+      return top;
+    }
+
+    /**
+     * 根据预览区 scrollTop，反算对应的源码行号
+     * 递归搜索子元素以支持细粒度映射
+     */
+    function getPreviewLineAtTop(previewContainer) {
+      var scrollTop = previewContainer.scrollTop;
+      var viewH = previewContainer.clientHeight;
+      var result = findLineAtScroll(previewContainer, scrollTop, previewContainer);
+      return result;
+    }
+
+    /**
+     * 递归查找指定 scrollTop 对应的源码行号
+     */
+    function findLineAtScroll(container, scrollTop, scrollContainer) {
+      var children = container.children;
+
+      for (var i = children.length - 1; i >= 0; i--) {
+        var el = children[i];
+        var start = parseInt(el.getAttribute('data-line-start'));
+        var end = parseInt(el.getAttribute('data-line-end'));
+
+        var absTop = getAbsoluteOffsetTop(el, scrollContainer);
+        var elH = el.offsetHeight;
+
+        if (absTop <= scrollTop) {
+          // 元素底部也在可视区域之上 → 看下一个
+          if (absTop + elH <= scrollTop && i < children.length - 1) continue;
+
+          // 先尝试递归搜索子元素（更细粒度）
+          var childResult = findLineAtScroll(el, scrollTop, scrollContainer);
+          if (childResult >= 0) return childResult;
+
+          // 在该元素内做插值
+          if (elH > 0 && !isNaN(start) && !isNaN(end) && (end - start) > 0) {
+            var ratio = Math.min(1, Math.max(0, (scrollTop - absTop) / elH));
+            return Math.round(start + ratio * (end - start));
+          }
+          return isNaN(start) ? -1 : start;
+        }
+      }
+
+      return -1;
+    }
+
+    /**
+     * 根据源码行号设置编辑器 scrollTop
+     */
+    function getEditorScrollForLine(textarea, sourceLine) {
+      var lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20.8;
+      return sourceLine * lineHeight;
+    }
+
+    // shouldSync 触发条件
+    function shouldSyncByLine(srcEl) {
+      var max = srcEl.scrollHeight - srcEl.clientHeight;
+      if (max <= 0) return false;
+      var pct = srcEl.scrollTop / max;
+      var scrolledLines = pct * _sourceTotalLines;
+      if (scrolledLines >= 5) return true;
+      return false;
+    }
+
+    function initSplitScroll() {
+      destroySplitScroll();
+
+      var editor  = document.getElementById('editorSplit');
+      var preview = document.getElementById('previewSplit');
+
+      function onEditorScroll() {
+        if (_sourceTotalLines === 0) return;
+        if (!shouldSyncByLine(editor)) return;
+        var srcLine = getSourceLineAtTop(editor);
+        var targetTop = getPreviewScrollForLine(preview, srcLine);
+        var maxScroll = preview.scrollHeight - preview.clientHeight;
+        if (maxScroll > 0) preview.scrollTop = Math.min(targetTop, maxScroll);
+      }
+
+      editor.addEventListener('scroll', onEditorScroll);
+
+      _splitScrollHandlers = { editor: onEditorScroll };
+    }
+
+    function destroySplitScroll() {
+      if (!_splitScrollHandlers) return;
+      var editor = document.getElementById('editorSplit');
+      if (editor) editor.removeEventListener('scroll', _splitScrollHandlers.editor);
+      _splitScrollHandlers = null;
+    }
+    // ===== END 分屏滚动同步 =====
+
+
+    function updatePreview() {
+      const content = getActiveEditor().value;
+      document.getElementById('wordCount').textContent = content.length + ' 字';
+      if (currentMode === 'edit') {
+        renderPreview(content, document.getElementById('preview'));
+      } else if (currentMode === 'preview') {
+        renderPreview(content, document.getElementById('preview'));
+      } else {
+        renderPreview(content, document.getElementById('previewSplit'));
+      }
+    }
+
+    function renderPreview(content, container) {
+      if (!marked) { container.innerHTML = '<p style="color:red;">marked.js 未加载</p>'; return; }
+      try {
+        // 1. 构建块级元素的行范围映射（含子项信息）
+        var blocks = buildBlockLineRanges(content);
+
+        // 2. 在源码中注入行号标记注释
+        var injected = injectBlockMarkers(content, blocks);
+
+        // 3. 渲染 HTML（marked 会保留 HTML 注释）
+        var html = marked.parse(injected);
+
+        // 4. 后处理：将注释标记转换为元素属性
+        html = processRenderedHTML(html);
+
+        container.innerHTML = html;
+        container.setAttribute('data-rendered', 'true');
+
+        // 5. 为嵌套子元素（<li>/<tr>）标注行号
+        annotateChildElements(container, blocks);
+
+        // 6. 异步渲染 mermaid / ascii
+        setTimeout(function() {
+          renderMermaid(container);
+          annotateChildElements(container, blocks);
+        }, 300);
+        setTimeout(function() {
+          renderAsciiDiagram(container);
+          annotateChildElements(container, blocks);
+        }, 500);
+      } catch (e) {
+        console.error('marked.parse error:', e);
+        container.innerHTML = '<p style="color:red;">解析错误: ' + e.message + '</p>';
+      }
+    }
+    // 盒形绘图字符检测正则
+    var ASCII_DIAGRAM_RE = /[│┌┐└┘├┤┬┴┼║╭╮╰╯╠╣╦╩╬▼▲►◄]/;
+
+    function renderAsciiDiagram(container) {
+      // 收集所有候选 pre 元素（language-text 或自动检测到盒形字符的）
+      var candidates = [];
+
+      // 1. 直接找 language-text 代码块，但必须含盒形字符才转换
+      var langTexts = container.querySelectorAll('pre code.language-text');
+      for (var j = 0; j < langTexts.length; j++) {
+        var codeText = langTexts[j].textContent || langTexts[j].innerText || '';
+        if (ASCII_DIAGRAM_RE.test(codeText)) {
+          candidates.push({ el: langTexts[j], pre: langTexts[j].parentElement, text: codeText });
+        }
+        // 否则不处理，保持普通文字显示
+      }
+
+      // 2. 若没有 language-text 块，扫描所有 pre，找含盒形字符的
+      if (langTexts.length === 0) {
+        var allPres = container.querySelectorAll('pre');
+        for (var k = 0; k < allPres.length; k++) {
+          var codeEl = allPres[k].querySelector('code');
+          var ct = codeEl ? (codeEl.textContent || codeEl.innerText || '') : (allPres[k].textContent || allPres[k].innerText || '');
+          if (ASCII_DIAGRAM_RE.test(ct)) {
+            candidates.push({ el: codeEl || allPres[k], pre: allPres[k], text: ct });
+          }
+        }
+      }
+
+      // 3. 逐个转换为 SVG
+      // 读取当前主题 CSS 变量
+      var rootStyle = getComputedStyle(document.documentElement);
+      var asciiStroke = rootStyle.getPropertyValue('--stroke-ascii').trim() || '#00e88f';
+      var asciiText   = rootStyle.getPropertyValue('--text-ascii').trim()   || '#e8eaed';
+      var asciiBg     = rootStyle.getPropertyValue('--bg-ascii').trim()     || '#0a0f16';
+      for (var i = 0; i < candidates.length; i++) {
+        var item = candidates[i];
+        try {
+          var svg = convertAsciiToSvg(item.text, {
+            charW: 9, charH: 18, strokeW: 1.2,
+            strokeColor: asciiStroke, textColor: asciiText, bgColor: asciiBg, fontSize: 11
+          });
+          var div = document.createElement('div');
+          div.className = 'ascii-container';
+          div.style.background = 'transparent';
+          div.style.padding = '16px';
+          div.style.margin = '16px 0';
+          div.style.borderRadius = '8px';
+          div.style.overflow = 'auto';
+          div.innerHTML = svg;
+          item.pre.parentNode.replaceChild(div, item.pre);
+        } catch (e) { console.error('renderAsciiDiagram error:', e); }
+      }
+    }
+
+    function renderMermaid(container) {
+      if (!mermaid || !mermaid.render) {
+        return;
+      }
+      var codes = container.querySelectorAll('pre code.language-mermaid');
+      if (codes.length === 0) {
+        // Find all pre elements
+        var allPres = container.querySelectorAll('pre');
+        for (var j = 0; j < allPres.length; j++) {
+          var codeEl = allPres[j].querySelector('code');
+          var codeText = codeEl ? (codeEl.textContent || codeEl.innerText || '') : (allPres[j].textContent || allPres[j].innerText || '');
+          // Only process mermaid graphs, skip other code blocks
+          if (codeText.indexOf('graph') === 0 || codeText.indexOf('flowchart') === 0) {
+            allPres[j].className = 'language-mermaid';
+            allPres[j].setAttribute('data-language', 'mermaid');
+          }
+        }
+        codes = container.querySelectorAll('pre code.language-mermaid, pre[data-language="mermaid"]');
+      }
+      var codes = container.querySelectorAll('pre code.language-mermaid');
+      if (codes.length === 0) {
+        codes = container.querySelectorAll('pre');
+        for (var j = 0; j < codes.length; j++) {
+          var codeText = codes[j].textContent || codes[j].innerText || '';
+          if (codeText.indexOf('graph') === 0 || codeText.indexOf('flowchart') === 0) {
+            codes[j].className = 'language-mermaid';
+            codes[j].setAttribute('data-language', 'mermaid');
+          }
+        }
+        codes = container.querySelectorAll('pre code.language-mermaid, pre[data-language="mermaid"]');
+      }
+      for (var i = 0; i < codes.length; i++) {
+        var code = codes[i];
+        var pre = code.parentElement || code;
+        var text = code.textContent || code.innerText || '';
+        var id = 'chart' + i + Date.now();
+        try {
+          var result = mermaid.render(id, text);
+          if (result && typeof result.then === 'function') {
+            result.then(function(output) {
+              var svg = output.svg || output;
+              var div = document.createElement('div');
+              div.className = 'mermaid-container';
+              div.innerHTML = svg;
+              pre.parentNode.replaceChild(div, pre);
+            }).catch(function(e) { pre.style.color = 'red'; });
+          } else {
+            var svg = result.svg || result;
+            var div = document.createElement('div');
+            div.className = 'mermaid-container';
+            div.innerHTML = svg;
+            pre.parentNode.replaceChild(div, pre);
+          }
+        } catch (e) { console.error('renderMermaid error:', e); pre.style.color = 'red'; }
+      }
+    }
+
+    function clearEditor() {
+      document.getElementById('editor').value = '';
+      document.getElementById('editorSplit').value = '';
+      updatePreview();
+    }
+
+    function insertAtCursor(textarea, text) {
+      const start = textarea.selectionStart, end = textarea.selectionEnd;
+      textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+      textarea.focus();
+    }
+
+    function insertTable() { insertAtCursor(getActiveEditor(), '\n| 标题1 | 标题2 | 标题3 |\n| ------ | ------ | ------ |\n| 内容1 | 内容2 | 内容3 |\n'); onEditorInput(); }
+    function insertCodeBlock() { insertAtCursor(getActiveEditor(), '\n```javascript\n// 代码\n```\n'); onEditorInput(); }
+    function insertMindMap() { insertAtCursor(getActiveEditor(), '\n```mermaid\ngraph TD\n    root((主题))\n      子主题1 --> 细节A\n      子主题1 --> 细节B\n      子主题2 --> 细节C\n      子主题2 --> 细节D\n```\n'); onEditorInput(); }
+    function insertHeading(level) { insertAtCursor(getActiveEditor(), '\n' + '#'.repeat(level) + ' 标题\n'); onEditorInput(); }
+    function insertBold() { insertAtCursor(getActiveEditor(), '**粗体**'); onEditorInput(); }
+    function insertItalic() { insertAtCursor(getActiveEditor(), '*斜体*'); onEditorInput(); }
+    function insertLink() { insertAtCursor(getActiveEditor(), '[链接](https://example.com)'); onEditorInput(); }
+    function insertList() { insertAtCursor(getActiveEditor(), '\n- 列表项1\n- 列表项2\n- 列表项3\n'); onEditorInput(); }
+
+    function uploadFile() { document.getElementById('fileInput').click(); }
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => { document.getElementById('editor').value = e.target.result; document.getElementById('editorSplit').value = e.target.result; updatePreview(); };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function downloadFile() {
+      const content = getActiveEditor().value;
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'document.md';
+      a.click();
+    }
+
+    function doPrint(previewEl) {
+      var content = previewEl.innerHTML;
+      var pw = window.open('', '_blank');
+      pw.document.write(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>打印</title><style>' +
+        /* ===== 白底黑字基础 ===== */
+        '*{color:#000!important;background:#fff!important;border-color:#ccc!important;box-shadow:none!important}' +
+        'body{font-family:Arial,sans-serif;padding:32px;max-width:860px;margin:0 auto;background:#fff!important}' +
+        /* 标题 */
+        'h1{font-size:24px;margin:0 0 16px;border-bottom:2px solid #ccc;padding-bottom:8px}' +
+        'h2{font-size:20px;margin:24px 0 12px}' +
+        'h3{font-size:16px;margin:16px 0 8px}' +
+        /* 段落列表 */
+        'p{margin:0 0 12px;line-height:1.8}' +
+        'ul,ol{padding-left:24px;margin:8px 0}li{margin-bottom:4px}' +
+        'a{color:#000!important;text-decoration:underline}' +
+        /* 引用 */
+        'blockquote{border-left:4px solid #888!important;margin:12px 0;padding:8px 16px}' +
+        /* 代码 */
+        'code{background:#f0f0f0!important;padding:2px 5px;border-radius:3px;font-size:0.9em}' +
+        'pre{background:#f0f0f0!important;padding:14px;border-radius:6px;overflow-x:auto;font-size:0.88em}' +
+        'pre code{background:none!important;padding:0}' +
+        /* 表格 */ 
+        'table{border-collapse:collapse;width:100%;margin:12px 0}' +
+        'th,td{border:1px solid #aaa!important;padding:8px 12px;text-align:left}' +
+        'th{background:#e8e8e8!important;font-weight:600}' +
+        /* 图片 & 容器 */
+        'img{max-width:100%}' +
+        '.ascii-container,.mermaid-container{margin:12px 0;overflow:auto;background:#fff !important}' +
+        /* SVG 线条：强制黑色（打印不需要绿色高亮）*/
+        'svg line,svg path,svg polyline,svg rect,svg circle{stroke:#000!important}' +
+        'svg text{fill:#000!important}' +
+        'svg rect[fill="#0a0f16"],svg rect[fill="#181b23"]{fill:#fff!important}' +
+        /* 打印页边距 */
+        '@media print{@page{margin:1.5cm}body{padding:0}}' +
+        '</style></head><body>' +
+        content +
+        '</body></html>'
+      );
+      pw.document.close();
+      pw.onload = function() { pw.print(); };
+      setTimeout(function() { try { pw.print(); } catch(e) {} }, 500);
+    }
+
+    function printDocument() {
+      // 取当前激活的预览区（已完整渲染，含 Mermaid / ASCII SVG）
+      var previewEl = currentMode === 'split'
+        ? document.getElementById('previewSplit')
+        : document.getElementById('preview');
+
+      // 若预览区为空（纯编辑模式且未切换过预览），先触发一次渲染
+      if (!previewEl || !previewEl.innerHTML.trim()) {
+        var editorVal = getActiveEditor().value;
+        if (!editorVal.trim()) { alert('文档内容为空。'); return; }
+        renderPreview(editorVal, document.getElementById('preview'));
+        previewEl = document.getElementById('preview');
+        // 等待异步渲染（mermaid/ascii 有 setTimeout）后再打印
+        setTimeout(function() { doPrint(previewEl); }, 600);
+        return;
+      }
+      doPrint(previewEl);
+    }
+
+    function toggleMindMap() {
+      mindmapVisible = !mindmapVisible;
+      document.getElementById('mindmapPanel').classList.toggle('show', mindmapVisible);
+      document.getElementById('btn-mindmap').classList.toggle('active', mindmapVisible);
+      if (mindmapVisible) updateMindMap();
+    }
+
+    async function updateMindMap() {
+      var content = getActiveEditor().value;
+      var container = document.getElementById('mindmapContent');
+      container.innerHTML = '';
+      if (!mermaid || !mermaid.render) { container.innerHTML = '<p style="color:#6b7280;">Mermaid 不可用</p>'; return; }
+      var matches = content.match(/```mermaid\n([\s\S]*?)```/g);
+      if (!matches) { container.innerHTML = '<p style="color:#6b7280;">未找到 Mermaid 代码</p>'; return; }
+      for (var i = 0; i < matches.length; i++) {
+        var code = matches[i].replace(/```mermaid\n/, '').replace(/```/, '');
+        var id = 'chart' + i + Date.now();
+        try {
+          var output = await mermaid.render(id, code);
+          var svg = output.svg || output;
+          var div = document.createElement('div');
+          div.className = 'mermaid-container';
+          div.innerHTML = svg;
+          div.style.marginBottom = '20px';
+          container.appendChild(div);
+        } catch (e) { container.innerHTML += '<p style="color:red;">错误: ' + e.message + '</p>'; }
+      }
+      if (container.children.length === 0) container.innerHTML = '<p style="color:#6b7280;">未找到图表</p>';
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

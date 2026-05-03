@@ -65,8 +65,36 @@
     /* ========== 布局 ========== */
     .content-wrapper { flex: 1; display: flex; overflow: hidden; min-width: 0; }
     .pane { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
-    .split-pane { display: flex; flex: 1; min-width: 0; gap: 1px; background: var(--border); }
+    .split-pane { display: flex; flex: 1; min-width: 0; gap: 1px; background: var(--border); position: relative; }
     .split-pane .pane { background: var(--bg-editor); }
+    .split-resize-handle {
+      width: 4px;
+      background: var(--border);
+      cursor: col-resize;
+      position: absolute;
+      z-index: 5;
+      top: 0;
+      bottom: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .split-pane:hover .split-resize-handle { opacity: 1; }
+    .split-resize-handle:hover,
+    .split-resize-handle.dragging { background: var(--accent); opacity: 1; }
+    .editor-pane { display: flex; flex-direction: column; position: relative; flex: 1; overflow: visible; }
+    .resize-handle {
+      width: 6px;
+      background: var(--border);
+      cursor: col-resize;
+      position: absolute;
+      right: -3px;
+      top: 0;
+      bottom: 0;
+      z-index: 10;
+      border-radius: 3px;
+    }
+    .resize-handle:hover,
+    .resize-handle.dragging { background: var(--accent); }
     /* ========== 编辑器 ========== */
     .editor-wrapper { display: flex; flex: 1; min-width: 0; overflow: hidden; background: var(--bg-editor); }
     .line-numbers {
@@ -206,11 +234,12 @@
   </div>
   <input type="file" id="fileInput" accept=".md,.markdown,.txt" style="display:none" onchange="handleFileUpload(event)">
   <div class="content-wrapper">
-    <div class="pane" id="editPane">
+    <div class="pane editor-pane" id="editPane">
       <div class="editor-wrapper">
         <div class="line-numbers" id="lineNumbers"></div>
         <textarea class="editor" id="editor" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbers')" onmouseup="updateCursorPos(this,'lineNumbers')" onclick="updateCursorPos(this,'lineNumbers')" onscroll="syncLineScroll(this,'lineNumbers')"></textarea>
       </div>
+      <div class="resize-handle" id="editResizeHandle"></div>
     </div>
     <div class="pane hidden" id="previewPane">
       <div class="preview" id="preview"></div>
@@ -222,6 +251,7 @@
           <textarea class="editor" id="editorSplit" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbersSplit')" onmouseup="updateCursorPos(this,'lineNumbersSplit')" onclick="updateCursorPos(this,'lineNumbersSplit')" onscroll="syncLineScroll(this,'lineNumbersSplit')"></textarea>
         </div>
       </div>
+      <div class="split-resize-handle" id="splitResizeHandle"></div>
       <div class="pane">
         <div class="preview" id="previewSplit"></div>
       </div>
@@ -678,11 +708,45 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       } catch(e) { window.mermaidLoadError = true; }
       document.getElementById('editor').value = defaultContent;
       document.getElementById('editorSplit').value = defaultContent;
-      // 初始化行号
       renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
       renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
-      // 应用默认主题（dark），同时初始化 mermaid
       applyTheme('dark');
+      document.getElementById('editResizeHandle').style.display = 'none';
+      initEditResize();
+    }
+
+    function initEditResize() {
+      var handle = document.getElementById('editResizeHandle');
+      var editPane = document.getElementById('editPane');
+      var contentWrapper = document.querySelector('.content-wrapper');
+      if (!handle || !editPane) return;
+
+      var startX, startWidth;
+
+      handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        handle.classList.add('dragging');
+        startX = e.clientX;
+        startWidth = editPane.offsetWidth;
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', stopResize);
+      });
+
+      function onResize(e) {
+        var dx = e.clientX - startX;
+        var newWidth = startWidth + dx;
+        var minWidth = 200;
+        var maxWidth = contentWrapper.offsetWidth - 200;
+        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        editPane.style.flex = 'none';
+        editPane.style.width = newWidth + 'px';
+      }
+
+      function stopResize() {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', stopResize);
+      }
     }
 
     function getActiveEditor() {
@@ -711,9 +775,87 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       document.getElementById('splitPane').classList.toggle('hidden', mode !== 'split');
       if (mode === 'preview' || mode === 'split') updatePreview();
       if (mode === 'split') {
+        initSplitResize();
         initSplitScroll();
       } else {
         destroySplitScroll();
+      }
+    }
+
+    function initSplitResize() {
+      var handle = document.getElementById('splitResizeHandle');
+      var splitPane = document.getElementById('splitPane');
+      if (!handle || !splitPane) return;
+
+      function updateHandlePosition() {
+        var editorPane = splitPane.children[0];
+        handle.style.left = (editorPane.offsetWidth - 3) + 'px';
+      }
+
+      var startX, startWidth;
+
+      handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        handle.classList.add('dragging');
+        startX = e.clientX;
+        var editorPane = splitPane.children[0];
+        startWidth = editorPane.offsetWidth;
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', stopResize);
+      });
+
+      function onResize(e) {
+        var dx = e.clientX - startX;
+        var editorPane = splitPane.children[0];
+        var containerWidth = splitPane.offsetWidth;
+        var newWidth = startWidth + dx;
+        var minWidth = containerWidth * 0.2;
+        var maxWidth = containerWidth * 0.8;
+        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        editorPane.style.flex = 'none';
+        editorPane.style.width = newWidth + 'px';
+        updateHandlePosition();
+      }
+
+      function stopResize() {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', stopResize);
+      }
+
+      updateHandlePosition();
+    }
+
+    function initEditResize() {
+      var handle = document.getElementById('editResizeHandle');
+      var editPane = document.getElementById('editPane');
+      if (!handle || !editPane) return;
+
+      var startX, startWidth;
+
+      handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        handle.classList.add('dragging');
+        startX = e.clientX;
+        startWidth = editPane.offsetWidth;
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', stopResize);
+      });
+
+      function onResize(e) {
+        var dx = e.clientX - startX;
+        var newWidth = startWidth + dx;
+        var minWidth = 200;
+        var maxWidth = window.innerWidth - 200;
+        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        editPane.style.flex = 'none';
+        editPane.style.width = newWidth + 'px';
+      }
+
+      function stopResize() {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', stopResize);
       }
     }
 

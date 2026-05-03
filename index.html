@@ -115,6 +115,7 @@
       font-size: 13px;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       line-height: 1.6;
+      height: 20.8px;
       color: var(--text-linenum);
       transition: color 0.1s;
     }
@@ -642,16 +643,14 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       if (!el) return;
       var lines = textarea.value.split('\n');
       var count = lines.length;
-      // 只在行数变化时重建 DOM，避免抖动
-      var spans = el.children;
-      if (spans.length !== count) {
-        var html = '';
-        for (var i = 1; i <= count; i++) {
-          html += '<span>' + i + '</span>';
-        }
-        el.innerHTML = html;
+      var html = '';
+      for (var i = 1; i <= count; i++) {
+        html += '<span>' + i + '</span>';
       }
-      // 高亮当前行
+      el.innerHTML = html;
+      if (el.parentElement) {
+        el.parentElement.scrollTop = textarea.scrollTop;
+      }
       highlightActiveLine(textarea, numbersId);
     }
 
@@ -699,7 +698,7 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
        END 行号 & 光标位置
        ============================ */
 
-    const defaultContent = ``;
+    const defaultContent = '# 欢迎使用 Markdown Editor\n\n开始编写您的文档...\n';
 
     function init() {
       try {
@@ -708,8 +707,11 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       } catch(e) { window.mermaidLoadError = true; }
       document.getElementById('editor').value = defaultContent;
       document.getElementById('editorSplit').value = defaultContent;
-      renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
-      renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+      setTimeout(function() {
+        renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
+        renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+        syncLineScroll(document.getElementById('editor'), 'lineNumbers');
+      }, 0);
       applyTheme('dark');
       document.getElementById('editResizeHandle').style.display = 'none';
       initEditResize();
@@ -1425,7 +1427,13 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (e) => { document.getElementById('editor').value = e.target.result; document.getElementById('editorSplit').value = e.target.result; updatePreview(); };
+      reader.onload = (e) => {
+        document.getElementById('editor').value = e.target.result;
+        document.getElementById('editorSplit').value = e.target.result;
+        renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
+        renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+        updatePreview();
+      };
       reader.readAsText(file);
       event.target.value = '';
     }

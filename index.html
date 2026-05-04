@@ -140,8 +140,8 @@
     .preview th { background: var(--bg-elevated); color: var(--text-primary); }
     .preview blockquote { border-left: 4px solid var(--accent); padding-left: 16px; margin: 12px 0; color: var(--text-dim); }
     .preview a { color: var(--accent); }
-    .preview .mermaid-container { background: var(--bg-mermaid); border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center; }
-    .preview .mermaid-container svg { max-width: 100%; height: auto; }
+    .preview .mermaid-container { background: var(--bg-mermaid); border-radius: 8px; padding: 12px; margin: 12px 0; text-align: center; max-height: 90vh; overflow: auto; }
+    .preview .mermaid-container svg { max-width: 100%; height: auto; max-height: 85vh; transform: scale(0.9); transform-origin: top center; }
     .preview .ascii-container { background: var(--bg-ascii); padding: 16px; margin: 16px 0; border-radius: 8px; overflow: auto; }
     .preview .ascii-container svg { max-width: 100%; height: auto; }
     /* ========== 思维导图面板 ========== */
@@ -158,7 +158,19 @@
     .mindmap-content svg { min-width: 800px; transition: transform 0.2s; }
     .hidden { display: none !important; }
     /* ========== 打印（固定白底黑字，不受主题影响）========== */
-    @media print { .toolbar, .content-wrapper { display: none !important; } body { background: white; color: black; } .preview { background: white; color: black; padding: 0; } .preview h1, .preview h2, .preview h3 { color: black; } .preview code, .preview pre { background: #f5f5f5; color: black; } }
+    @media print {
+      .toolbar, .content-wrapper, .mindmap-panel { display: none !important; }
+      body { background: white; color: black; }
+      .preview { background: white; color: black; padding: 20px; }
+      .preview h1, .preview h2, .preview h3 { color: black; }
+      .preview code, .preview pre { background: #f5f5f5; color: black; }
+      .preview .mermaid-container svg { background: transparent !important; }
+      .preview .mermaid-container svg rect,
+      .preview .mermaid-container svg polygon,
+      .preview .mermaid-container svg path,
+      .preview .mermaid-container svg text { fill: none !important; stroke: #000 !important; stroke-width: 1 !important; }
+      .preview .mermaid-container svg text { fill: #000 !important; }
+    }
   </style>
 </head>
 <body>
@@ -537,7 +549,9 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
           mermaid.initialize({
             startOnLoad: false,
             theme: theme === 'dark' ? 'dark' : 'default',
-            securityLevel: 'loose'
+            securityLevel: 'loose',
+            fontSize: '12px',
+            flowchart: { curve: 'basis', padding: 5 }
           });
         } catch(e) {}
         for (var ci = 0; ci < containers.length; ci++) {
@@ -1469,16 +1483,16 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
         'code{background:#f0f0f0!important;padding:2px 5px;border-radius:3px;font-size:0.9em}' +
         'pre{background:#f0f0f0!important;padding:14px;border-radius:6px;overflow-x:auto;font-size:0.88em}' +
         'pre code{background:none!important;padding:0}' +
-        /* 表格 */ 
+        /* 表格 */
         'table{border-collapse:collapse;width:100%;margin:12px 0}' +
         'th,td{border:1px solid #aaa!important;padding:8px 12px;text-align:left}' +
         'th{background:#e8e8e8!important;font-weight:600}' +
         /* 图片 & 容器 */
         'img{max-width:100%}' +
         '.ascii-container,.mermaid-container{margin:12px 0;overflow:auto;background:#fff !important}' +
-        /* SVG 线条：强制黑色（打印不需要绿色高亮）*/
-        'svg line,svg path,svg polyline,svg rect,svg circle{stroke:#000!important}' +
-        'svg text{fill:#000!important}' +
+        /* Mermaid: 无填充，细边框，黑色文字 */
+        '.mermaid-container svg rect,.mermaid-container svg polygon,.mermaid-container svg path,.mermaid-container svg circle{fill:none!important;stroke:#000!important;stroke-width:1px!important}' +
+        '.mermaid-container svg text{fill:#000!important}' +
         'svg rect[fill="#0a0f16"],svg rect[fill="#181b23"]{fill:#fff!important}' +
         /* 打印页边距 */
         '@media print{@page{margin:1.5cm}body{padding:0}}' +
@@ -1603,7 +1617,9 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
         await mermaid.initialize({
           startOnLoad: false,
           theme: currentTheme === 'dark' ? 'dark' : 'default',
-          securityLevel: 'loose'
+          securityLevel: 'loose',
+          fontSize: '12px',
+          flowchart: { curve: 'basis', padding: 8 }
         });
       } catch(e) {}
 

@@ -157,6 +157,124 @@
     .mindmap-content { flex: 1; overflow: auto; padding: 20px; background: var(--bg-editor); display: flex; align-items: flex-start; justify-content: center; }
     .mindmap-content svg { min-width: 800px; transition: transform 0.2s; }
     .hidden { display: none !important; }
+    /* ========== 查找替换栏 ========== */
+    .find-bar {
+      display: none;
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      z-index: 200;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      gap: 8px;
+      align-items: center;
+    }
+    .find-bar.show { display: flex; }
+    .find-bar input {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 180px;
+      outline: none;
+    }
+    .find-bar input:focus { border-color: var(--accent); }
+    .find-bar button {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .find-bar button:hover { color: var(--accent); border-color: var(--accent); }
+    .find-bar .find-count { font-size: 12px; color: var(--text-dim); min-width: 60px; text-align: center; }
+    /* ========== 拖拽上传覆盖层 ========== */
+    .drop-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(245, 158, 11, 0.15);
+      border: 3px dashed var(--accent);
+      z-index: 300;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+    }
+    .drop-overlay.show { display: flex; }
+    .drop-overlay-text {
+      background: var(--bg-panel);
+      padding: 16px 32px;
+      border-radius: 8px;
+      font-size: 18px;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    /* ========== TOC 目录侧边栏 ========== */
+    .toc-sidebar {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      width: 260px;
+      height: calc(100% - 60px);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .toc-sidebar.show { display: flex; }
+    .toc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .toc-header h3 { font-size: 14px; color: var(--text-primary); margin: 0; }
+    .toc-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 16px;
+    }
+    .toc-close:hover { color: var(--text-primary); }
+    .toc-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .toc-item {
+      display: block;
+      padding: 6px 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.2s, background 0.2s;
+      border-left: 3px solid transparent;
+    }
+    .toc-item:hover { color: var(--accent); background: var(--bg-elevated); }
+    .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg-elevated); }
+    .toc-item.level-1 { padding-left: 16px; font-weight: 600; }
+    .toc-item.level-2 { padding-left: 28px; }
+    .toc-item.level-3 { padding-left: 40px; font-size: 12px; }
+    .toc-item.level-4 { padding-left: 52px; font-size: 12px; }
+    .toc-item.level-5 { padding-left: 64px; font-size: 11px; }
+    .toc-item.level-6 { padding-left: 76px; font-size: 11px; }
     /* ========== 打印（固定白底黑字，不受主题影响）========== */
     @media print {
       .toolbar, .content-wrapper, .mindmap-panel { display: none !important; }
@@ -187,6 +305,9 @@
       </button>
       <button class="tool-btn" title="思维导图" onclick="toggleMindMap()" id="btn-mindmap-tool">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/><line x1="9" y1="10" x2="6" y2="7"/><line x1="15" y1="10" x2="18" y2="7"/><line x1="9" y1="14" x2="6" y2="17"/><line x1="15" y1="14" x2="18" y2="17"/></svg>
+      </button>
+      <button class="tool-btn" title="目录 (Ctrl+T)" onclick="toggleToc()" id="btn-toc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="toolbar-divider"></div>
@@ -246,11 +367,14 @@
     </div>
   </div>
   <input type="file" id="fileInput" accept=".md,.markdown,.txt" style="display:none" onchange="handleFileUpload(event)">
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-overlay-text">拖放 .md 文件到此处</div>
+  </div>
   <div class="content-wrapper">
     <div class="pane editor-pane" id="editPane">
       <div class="editor-wrapper">
         <div class="line-numbers" id="lineNumbers"></div>
-        <textarea class="editor" id="editor" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbers')" onmouseup="updateCursorPos(this,'lineNumbers')" onclick="updateCursorPos(this,'lineNumbers')" onscroll="syncLineScroll(this,'lineNumbers')"></textarea>
+        <textarea class="editor" id="editor" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbers')" onmouseup="updateCursorPos(this,'lineNumbers')" onclick="updateCursorPos(this,'lineNumbers')" onscroll="syncLineScroll(this,'lineNumbers')" onkeydown="handleEditorKeydown(event)"></textarea>
       </div>
       <div class="resize-handle" id="editResizeHandle"></div>
     </div>
@@ -261,7 +385,7 @@
       <div class="pane">
         <div class="editor-wrapper">
           <div class="line-numbers" id="lineNumbersSplit"></div>
-          <textarea class="editor" id="editorSplit" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbersSplit')" onmouseup="updateCursorPos(this,'lineNumbersSplit')" onclick="updateCursorPos(this,'lineNumbersSplit')" onscroll="syncLineScroll(this,'lineNumbersSplit')"></textarea>
+          <textarea class="editor" id="editorSplit" placeholder="使用 Markdown 编写..." oninput="onEditorInput()" onkeyup="updateCursorPos(this,'lineNumbersSplit')" onmouseup="updateCursorPos(this,'lineNumbersSplit')" onclick="updateCursorPos(this,'lineNumbersSplit')" onscroll="syncLineScroll(this,'lineNumbersSplit')" onkeydown="handleEditorKeydown(event)"></textarea>
         </div>
       </div>
       <div class="split-resize-handle" id="splitResizeHandle"></div>
@@ -283,6 +407,23 @@
       </button>
     </div>
     <div class="mindmap-content" id="mindmapContent"></div>
+  </div>
+  <div class="find-bar" id="findBar">
+    <input type="text" id="findInput" placeholder="查找..." oninput="doFind()" onkeydown="if(event.key==='Enter'){event.shiftKey?findPrev():findNext()}">
+    <span class="find-count" id="findCount">0/0</span>
+    <button onclick="findPrev()" title="上一个 (Shift+Enter)">&#9650;</button>
+    <button onclick="findNext()" title="下一个 (Enter)">&#9660;</button>
+    <input type="text" id="replaceInput" placeholder="替换...">
+    <button onclick="replaceOne()" title="替换">替换</button>
+    <button onclick="replaceAll()" title="全部替换">全替</button>
+    <button onclick="toggleFindBar()" title="关闭 (Esc)">&times;</button>
+  </div>
+  <div class="toc-sidebar" id="tocSidebar">
+    <div class="toc-header">
+      <h3>目录</h3>
+      <button class="toc-close" onclick="toggleToc()">&times;</button>
+    </div>
+    <div class="toc-list" id="tocList"></div>
   </div>
   <script>
 /* ============================
@@ -509,6 +650,9 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
     let mindmapVisible = false;
     let currentTheme = 'dark';
     let mindmapZoom = 1;
+    let _previewDebounceTimer = null;
+    const STORAGE_KEY = 'md-editor-content';
+    const THEME_KEY = 'md-editor-theme';
 
     function zoomMindMap(factor) {
       mindmapZoom = factor === 1 ? 1 : mindmapZoom * factor;
@@ -535,6 +679,7 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       document.documentElement.setAttribute('data-theme', theme);
       document.getElementById('icon-moon').style.display = theme === 'dark' ? '' : 'none';
       document.getElementById('icon-sun').style.display  = theme === 'light' ? '' : 'none';
+      saveTheme(theme);
 
       var containers = [];
       if (currentMode === 'edit') {
@@ -567,30 +712,21 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
     /**
      * 重新渲染已有的 mermaid 图（用新主题色）
      */
-    function refreshMermaidDiagrams(container) {
+    async function refreshMermaidDiagrams(container) {
       if (!mermaid || !mermaid.render) return;
       var mermaidDivs = container.querySelectorAll('.mermaid-container');
       if (mermaidDivs.length === 0) return;
 
-      // 从原始 Markdown 中提取 mermaid 代码
       var content = getActiveEditor().value;
       var matches = content.match(/```mermaid\n([\s\S]*?)```/g);
       if (!matches) return;
 
       for (var i = 0; i < mermaidDivs.length && i < matches.length; i++) {
         var code = matches[i].replace(/```mermaid\n/, '').replace(/```/, '');
-        var id = 'chart' + i + Date.now();
+        var id = 'refresh_' + i + '_' + Date.now();
         try {
-          var result = mermaid.render(id, code);
-          if (result && typeof result.then === 'function') {
-            (function(div) {
-              result.then(function(output) {
-                div.innerHTML = output.svg || output;
-              }).catch(function() {});
-            })(mermaidDivs[i]);
-          } else {
-            mermaidDivs[i].innerHTML = result.svg || result;
-          }
+          var result = await mermaid.render(id, code);
+          mermaidDivs[i].innerHTML = result.svg || result;
         } catch(e) { console.error('refreshMermaid error:', e); }
       }
     }
@@ -651,17 +787,28 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
        行号 & 光标位置
        ============================ */
 
-    // 渲染行号（在 oninput 时调用）
+    // 渲染行号（diff 更新，避免每次重建 DOM）
     function renderLineNumbers(textarea, numbersId) {
       var el = document.getElementById(numbersId);
       if (!el) return;
-      var lines = textarea.value.split('\n');
-      var count = lines.length;
-      var html = '';
-      for (var i = 1; i <= count; i++) {
-        html += '<span>' + i + '</span>';
+      var count = textarea.value.split('\n').length;
+      var spans = el.children;
+      var currentCount = spans.length;
+
+      if (count > currentCount) {
+        var frag = document.createDocumentFragment();
+        for (var i = currentCount + 1; i <= count; i++) {
+          var span = document.createElement('span');
+          span.textContent = i;
+          frag.appendChild(span);
+        }
+        el.appendChild(frag);
+      } else if (count < currentCount) {
+        for (var i = currentCount - 1; i >= count; i--) {
+          el.removeChild(spans[i]);
+        }
       }
-      el.innerHTML = html;
+
       if (el.parentElement) {
         el.parentElement.scrollTop = textarea.scrollTop;
       }
@@ -719,16 +866,83 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
         window.mermaidLoadError = false;
         if (typeof mermaid === 'undefined') window.mermaidLoadError = true;
       } catch(e) { window.mermaidLoadError = true; }
-      document.getElementById('editor').value = defaultContent;
-      document.getElementById('editorSplit').value = defaultContent;
+      var saved = localStorage.getItem(STORAGE_KEY);
+      var content = saved !== null ? saved : defaultContent;
+      document.getElementById('editor').value = content;
+      document.getElementById('editorSplit').value = content;
+      var savedTheme = localStorage.getItem(THEME_KEY);
+      if (savedTheme) applyTheme(savedTheme);
       setTimeout(function() {
         renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
         renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
         syncLineScroll(document.getElementById('editor'), 'lineNumbers');
       }, 0);
-      applyTheme('dark');
       document.getElementById('editResizeHandle').style.display = 'none';
       initEditResize();
+      initDragDrop();
+    }
+
+    function initDragDrop() {
+      var overlay = document.getElementById('dropOverlay');
+      var dragCounter = 0;
+
+      document.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        dragCounter++;
+        overlay.classList.add('show');
+      });
+
+      document.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+          dragCounter = 0;
+          overlay.classList.remove('show');
+        }
+      });
+
+      document.addEventListener('dragover', function(e) {
+        e.preventDefault();
+      });
+
+      document.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dragCounter = 0;
+        overlay.classList.remove('show');
+
+        var files = e.dataTransfer.files;
+        if (files.length === 0) return;
+
+        var file = files[0];
+        var name = file.name.toLowerCase();
+        if (!name.endsWith('.md') && !name.endsWith('.markdown') && !name.endsWith('.txt')) {
+          alert('只支持 .md、.markdown、.txt 文件');
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          document.getElementById('editor').value = ev.target.result;
+          document.getElementById('editorSplit').value = ev.target.result;
+          renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
+          renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
+          updatePreview();
+          saveContent();
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    function saveContent() {
+      try {
+        localStorage.setItem(STORAGE_KEY, getActiveEditor().value);
+      } catch(e) {}
+    }
+
+    function saveTheme(theme) {
+      try {
+        localStorage.setItem(THEME_KEY, theme);
+      } catch(e) {}
     }
 
     function initEditResize() {
@@ -773,13 +987,16 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       const content = getActiveEditor().value;
       document.getElementById('editor').value = content;
       document.getElementById('editorSplit').value = content;
-      // 同步行号
       renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
       renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
-      // 更新光标位置
       updateCursorPos(getActiveEditor(), currentMode === 'split' ? 'lineNumbersSplit' : 'lineNumbers');
-      updatePreview();
-      if (mindmapVisible) updateMindMapFromHeadings();
+      if (_previewDebounceTimer) clearTimeout(_previewDebounceTimer);
+      _previewDebounceTimer = setTimeout(function() {
+        updatePreview();
+        if (mindmapVisible) updateMindMapFromHeadings();
+        if (_tocVisible) updateToc();
+        saveContent();
+      }, 150);
     }
 
     function setMode(mode) {
@@ -840,39 +1057,6 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       }
 
       updateHandlePosition();
-    }
-
-    function initEditResize() {
-      var handle = document.getElementById('editResizeHandle');
-      var editPane = document.getElementById('editPane');
-      if (!handle || !editPane) return;
-
-      var startX, startWidth;
-
-      handle.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        handle.classList.add('dragging');
-        startX = e.clientX;
-        startWidth = editPane.offsetWidth;
-        document.addEventListener('mousemove', onResize);
-        document.addEventListener('mouseup', stopResize);
-      });
-
-      function onResize(e) {
-        var dx = e.clientX - startX;
-        var newWidth = startWidth + dx;
-        var minWidth = 200;
-        var maxWidth = window.innerWidth - 200;
-        newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-        editPane.style.flex = 'none';
-        editPane.style.width = newWidth + 'px';
-      }
-
-      function stopResize() {
-        handle.classList.remove('dragging');
-        document.removeEventListener('mousemove', onResize);
-        document.removeEventListener('mouseup', stopResize);
-      }
     }
 
     // ===== 分屏滚动同步（基于源码行号 → 预览元素映射） =====
@@ -1357,60 +1541,37 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       }
     }
 
-    function renderMermaid(container) {
-      if (!mermaid || !mermaid.render) {
-        return;
-      }
-      var codes = container.querySelectorAll('pre code.language-mermaid');
-      if (codes.length === 0) {
-        // Find all pre elements
-        var allPres = container.querySelectorAll('pre');
-        for (var j = 0; j < allPres.length; j++) {
-          var codeEl = allPres[j].querySelector('code');
-          var codeText = codeEl ? (codeEl.textContent || codeEl.innerText || '') : (allPres[j].textContent || allPres[j].innerText || '');
-          // Only process mermaid graphs, skip other code blocks
-          if (codeText.indexOf('graph') === 0 || codeText.indexOf('flowchart') === 0) {
-            allPres[j].className = 'language-mermaid';
-            allPres[j].setAttribute('data-language', 'mermaid');
-          }
+    async function renderMermaid(container) {
+      if (!mermaid || !mermaid.render) return;
+
+      var allPres = container.querySelectorAll('pre');
+      var mermaidBlocks = [];
+
+      for (var j = 0; j < allPres.length; j++) {
+        var pre = allPres[j];
+        if (pre.dataset.mermaidRendered) continue;
+        var codeEl = pre.querySelector('code');
+        var text = codeEl ? (codeEl.textContent || codeEl.innerText || '') : (pre.textContent || pre.innerText || '');
+        text = text.trim();
+        if (text.indexOf('graph') === 0 || text.indexOf('flowchart') === 0 || text.indexOf('sequenceDiagram') === 0 || text.indexOf('classDiagram') === 0 || text.indexOf('stateDiagram') === 0 || text.indexOf('gantt') === 0 || text.indexOf('pie') === 0) {
+          mermaidBlocks.push({ pre: pre, text: text });
         }
-        codes = container.querySelectorAll('pre code.language-mermaid, pre[data-language="mermaid"]');
       }
-      var codes = container.querySelectorAll('pre code.language-mermaid');
-      if (codes.length === 0) {
-        codes = container.querySelectorAll('pre');
-        for (var j = 0; j < codes.length; j++) {
-          var codeText = codes[j].textContent || codes[j].innerText || '';
-          if (codeText.indexOf('graph') === 0 || codeText.indexOf('flowchart') === 0) {
-            codes[j].className = 'language-mermaid';
-            codes[j].setAttribute('data-language', 'mermaid');
-          }
-        }
-        codes = container.querySelectorAll('pre code.language-mermaid, pre[data-language="mermaid"]');
-      }
-      for (var i = 0; i < codes.length; i++) {
-        var code = codes[i];
-        var pre = code.parentElement || code;
-        var text = code.textContent || code.innerText || '';
-        var id = 'chart' + i + Date.now();
+
+      for (var i = 0; i < mermaidBlocks.length; i++) {
+        var block = mermaidBlocks[i];
+        var id = 'mermaid_' + i + '_' + Date.now();
         try {
-          var result = mermaid.render(id, text);
-          if (result && typeof result.then === 'function') {
-            result.then(function(output) {
-              var svg = output.svg || output;
-              var div = document.createElement('div');
-              div.className = 'mermaid-container';
-              div.innerHTML = svg;
-              pre.parentNode.replaceChild(div, pre);
-            }).catch(function(e) { pre.style.color = 'red'; });
-          } else {
-            var svg = result.svg || result;
-            var div = document.createElement('div');
-            div.className = 'mermaid-container';
-            div.innerHTML = svg;
-            pre.parentNode.replaceChild(div, pre);
-          }
-        } catch (e) { console.error('renderMermaid error:', e); pre.style.color = 'red'; }
+          var result = await mermaid.render(id, block.text);
+          var svg = result.svg || result;
+          var div = document.createElement('div');
+          div.className = 'mermaid-container';
+          div.innerHTML = svg;
+          block.pre.parentNode.replaceChild(div, block.pre);
+        } catch (e) {
+          console.error('renderMermaid error:', e);
+          block.pre.style.color = 'red';
+        }
       }
     }
 
@@ -1418,6 +1579,7 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
       document.getElementById('editor').value = '';
       document.getElementById('editorSplit').value = '';
       updatePreview();
+      saveContent();
     }
 
     function insertAtCursor(textarea, text) {
@@ -1436,6 +1598,161 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
     function insertLink() { insertAtCursor(getActiveEditor(), '[链接](https://example.com)'); onEditorInput(); }
     function insertList() { insertAtCursor(getActiveEditor(), '\n- 列表项1\n- 列表项2\n- 列表项3\n'); onEditorInput(); }
 
+    function handleEditorKeydown(e) {
+      if (e.key === 'Escape') {
+        var bar = document.getElementById('findBar');
+        if (bar.classList.contains('show')) { toggleFindBar(); return; }
+        var toc = document.getElementById('tocSidebar');
+        if (toc.classList.contains('show')) { toggleToc(); return; }
+      }
+      if (!e.ctrlKey && !e.metaKey) return;
+      var key = e.key.toLowerCase();
+      if (key === 'b') { e.preventDefault(); insertBold(); }
+      else if (key === 'i') { e.preventDefault(); insertItalic(); }
+      else if (key === 'k') { e.preventDefault(); insertLink(); }
+      else if (key === 's') { e.preventDefault(); saveContent(); }
+      else if (key === 'f') { e.preventDefault(); toggleFindBar(); }
+      else if (key === 'h') { e.preventDefault(); toggleFindBar(true); }
+      else if (key === 't') { e.preventDefault(); toggleToc(); }
+    }
+
+    var _findMatches = [];
+    var _findIndex = -1;
+
+    function toggleFindBar(withReplace) {
+      var bar = document.getElementById('findBar');
+      var show = !bar.classList.contains('show');
+      bar.classList.toggle('show', show);
+      if (show) {
+        document.getElementById('findInput').focus();
+        if (withReplace) document.getElementById('replaceInput').style.display = '';
+      }
+    }
+
+    function doFind() {
+      var query = document.getElementById('findInput').value;
+      var editor = getActiveEditor();
+      var text = editor.value;
+      _findMatches = [];
+      _findIndex = -1;
+
+      if (!query) {
+        document.getElementById('findCount').textContent = '0/0';
+        return;
+      }
+
+      var idx = 0;
+      while ((idx = text.indexOf(query, idx)) !== -1) {
+        _findMatches.push(idx);
+        idx += query.length;
+      }
+
+      if (_findMatches.length > 0) {
+        _findIndex = 0;
+        highlightFindResult();
+      }
+      document.getElementById('findCount').textContent = _findMatches.length > 0 ? '1/' + _findMatches.length : '0/0';
+    }
+
+    function highlightFindResult() {
+      var editor = getActiveEditor();
+      if (_findIndex >= 0 && _findIndex < _findMatches.length) {
+        var pos = _findMatches[_findIndex];
+        var query = document.getElementById('findInput').value;
+        editor.focus();
+        editor.setSelectionRange(pos, pos + query.length);
+        document.getElementById('findCount').textContent = (_findIndex + 1) + '/' + _findMatches.length;
+      }
+    }
+
+    function findNext() {
+      if (_findMatches.length === 0) return;
+      _findIndex = (_findIndex + 1) % _findMatches.length;
+      highlightFindResult();
+    }
+
+    function findPrev() {
+      if (_findMatches.length === 0) return;
+      _findIndex = (_findIndex - 1 + _findMatches.length) % _findMatches.length;
+      highlightFindResult();
+    }
+
+    function replaceOne() {
+      if (_findIndex < 0 || _findMatches.length === 0) return;
+      var editor = getActiveEditor();
+      var query = document.getElementById('findInput').value;
+      var replacement = document.getElementById('replaceInput').value;
+      var pos = _findMatches[_findIndex];
+      editor.setSelectionRange(pos, pos + query.length);
+      document.execCommand('insertText', false, replacement);
+      saveContent();
+      doFind();
+    }
+
+    function replaceAll() {
+      var query = document.getElementById('findInput').value;
+      var replacement = document.getElementById('replaceInput').value;
+      if (!query) return;
+      var editor = getActiveEditor();
+      var text = editor.value;
+      var newText = text.split(query).join(replacement);
+      editor.value = newText;
+      document.getElementById('editor').value = newText;
+      document.getElementById('editorSplit').value = newText;
+      saveContent();
+      doFind();
+      onEditorInput();
+    }
+
+    var _tocVisible = false;
+
+    function toggleToc() {
+      _tocVisible = !_tocVisible;
+      document.getElementById('tocSidebar').classList.toggle('show', _tocVisible);
+      document.getElementById('btn-toc').classList.toggle('active', _tocVisible);
+      if (_tocVisible) updateToc();
+    }
+
+    function updateToc() {
+      var content = getActiveEditor().value;
+      var lines = content.split('\n');
+      var tocList = document.getElementById('tocList');
+      tocList.innerHTML = '';
+
+      for (var i = 0; i < lines.length; i++) {
+        var match = lines[i].match(/^(#{1,6})\s+(.+)/);
+        if (!match) continue;
+
+        var level = match[1].length;
+        var text = match[2].trim();
+        var lineNum = i;
+
+        var item = document.createElement('div');
+        item.className = 'toc-item level-' + level;
+        item.textContent = text;
+        item.dataset.line = lineNum;
+        item.title = text;
+        item.onclick = (function(ln) {
+          return function() { jumpToLine(ln); };
+        })(lineNum);
+
+        tocList.appendChild(item);
+      }
+    }
+
+    function jumpToLine(lineNum) {
+      var editor = getActiveEditor();
+      var lines = editor.value.split('\n');
+      var pos = 0;
+      for (var i = 0; i < lineNum && i < lines.length; i++) {
+        pos += lines[i].length + 1;
+      }
+      editor.focus();
+      editor.setSelectionRange(pos, pos);
+      var lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 20.8;
+      editor.scrollTop = lineNum * lineHeight - editor.clientHeight / 2;
+    }
+
     function uploadFile() { document.getElementById('fileInput').click(); }
     function handleFileUpload(event) {
       const file = event.target.files[0];
@@ -1447,6 +1764,7 @@ return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' +
         renderLineNumbers(document.getElementById('editor'), 'lineNumbers');
         renderLineNumbers(document.getElementById('editorSplit'), 'lineNumbersSplit');
         updatePreview();
+        saveContent();
       };
       reader.readAsText(file);
       event.target.value = '';
